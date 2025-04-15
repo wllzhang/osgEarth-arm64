@@ -12,6 +12,10 @@ jobs:
   build:
     runs-on: ubuntu-22.04-arm
     steps:
+    - name: Print architecture
+      run: |
+        echo "Architecture: $(uname -m)"
+        
     - name: Checkout repository
       uses: actions/checkout@v2
 
@@ -62,12 +66,13 @@ jobs:
     - name: Build GDAL
       run: |
         cd gdal
-        mkdir build
+        mkdir -p build
         cd build
-        cmake ..
+        cmake ../  # 注意这里是指向上一级，即 gdal 目录中的 CMakeLists.txt
         make -j$(nproc)
         sudo make install
         echo "GDAL built successfully."
+  
 
     - name: Build OSG
       run: |
