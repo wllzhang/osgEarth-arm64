@@ -1,0 +1,68 @@
+name: Build OSGeoEarth for ARM64
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        architecture: [arm64]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up ARM64 environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user-static
+
+    - name: Install common dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake git
+
+    - name: Clone GDAL, OSG, and OSGeoEarth repositories
+      run: |
+        mkdir -p src
+        cd src
+        
+        # Clone GDAL, OSG, OSGeoEarth repositories
+        git clone https://github.com/OSGeo/gdal.git
+        git clone https://github.com/openscenegraph/OpenSceneGraph.git
+        git clone https://github.com/openscenegraph/osgearth.git
+
+    - name: Build GDAL from source
+      run: |
+        cd src/gdal
+        ./autogen.sh
+        ./configure --prefix=/usr/local
+        make -j$(nproc)
+        sudo make install
+
+    - name: Build OpenSceneGraph (OSG) from source
+      run: |
+        cd src/OpenSceneGraph
+        cmake .
+        make -j$(nproc)
+        sudo make install
+
+    - name: Build OSGeoEarth from source
+      run: |
+        cd src/osgearth
+        mkdir build
+        cd build
+        cmake ..
+        make -j$(nproc)
+        sudo make install
+
+    - name: Verify OSGeoEarth build
+      run: |
+        osgearth --version
