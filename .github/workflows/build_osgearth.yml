@@ -1,4 +1,4 @@
-name: Build OSGeoEarth for ARM64
+name: Build osgEarth on arm64
 
 on:
   push:
@@ -10,59 +10,88 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        architecture: [arm64]
-    
+    runs-on: ubuntu-22.04-arm64
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Set up ARM64 environment
+    - name: Set up GitHub token for private repos (if needed)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub 自动提供的 Token
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user-static
+        git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com".insteadOf "https://github.com"
+        echo "GitHub token configured successfully."
 
-    - name: Install common dependencies
+    - name: Clone GDAL repository
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake git
-
-    - name: Clone GDAL, OSG, and OSGeoEarth repositories
-      run: |
-        mkdir -p src
-        cd src
-        
-        # Clone GDAL, OSG, OSGeoEarth repositories
         git clone https://github.com/OSGeo/gdal.git
+        cd gdal
+        git checkout release/3.3
+        echo "GDAL repository cloned successfully."
+
+    - name: Clone OSG repository
+      run: |
         git clone https://github.com/openscenegraph/OpenSceneGraph.git
-        git clone https://github.com/openscenegraph/osgearth.git
+        cd OpenSceneGraph
+        git checkout master
+        echo "OSG repository cloned successfully."
 
-    - name: Build GDAL from source
+    - name: Clone osgEarth repository
       run: |
-        cd src/gdal
-        ./autogen.sh
-        ./configure --prefix=/usr/local
-        make -j$(nproc)
-        sudo make install
+        git clone https://github.com/gwaldron/osgEarth.git
+        cd osgEarth
+        git checkout master
+        echo "osgEarth repository cloned successfully."
 
-    - name: Build OpenSceneGraph (OSG) from source
+    - name: Install build dependencies
       run: |
-        cd src/OpenSceneGraph
-        cmake .
-        make -j$(nproc)
-        sudo make install
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          git \
+          cmake \
+          wget \
+          curl \
+          unzip \
+          pkg-config \
+          libjpeg-dev \
+          libpng-dev \
+          libtiff-dev
+        echo "Build dependencies installed."
 
-    - name: Build OSGeoEarth from source
+    - name: Build GDAL
       run: |
-        cd src/osgearth
+        cd gdal
         mkdir build
         cd build
         cmake ..
         make -j$(nproc)
         sudo make install
+        echo "GDAL built successfully."
 
-    - name: Verify OSGeoEarth build
+    - name: Build OSG
       run: |
-        osgearth --version
+        cd ../OpenSceneGraph
+        mkdir build
+        cd build
+        cmake ..
+        make -j$(nproc)
+        sudo make install
+        echo "OSG built successfully."
+
+    - name: Build osgEarth
+      run: |
+        cd ../osgEarth
+        mkdir build
+        cd build
+        cmake ..
+        make -j$(nproc)
+        sudo make install
+        echo "osgEarth built successfully."
+
+    - name: Verify installation
+      run: |
+        gdalinfo --version
+        osgviewer --version
+        osgEarth --version
+        echo "Installation verification completed."
